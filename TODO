@@ -1,0 +1,2 @@
+- forward all impls to a monomorphised implementation
+- handle unsized Ts, e.g. &dyn X

@@ -1,0 +1,3 @@
+A struct that stores a `T`, either inline or, if `T` is larger than 3 words, allocated.
+
+This mirrors how Swift's non-specialised array works.
