@@ -1,0 +1,10 @@
+[package]
+name = "trident"
+version = "0.1.0"
+authors = ["Rob Pilling <robpilling@gmail.com>"]
+edition = "2021"
+description = "A struct that stores a `T`, either inline or, if `T` is larger than 3 words, allocated"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/bobrippling/trident"
+
+[dependencies]
