@@ -1,6 +1,6 @@
 [package]
 name = "trident"
-version = "0.1.0"
+version = "0.2.1"
 authors = ["Rob Pilling <robpilling@gmail.com>"]
 edition = "2021"
 description = "A struct that stores a `T`, either inline or, if `T` is larger than 3 words, allocated"
