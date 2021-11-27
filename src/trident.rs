@@ -1,69 +1,82 @@
-use std::marker::PhantomData;
-use std::mem;
-use std::ptr;
+use std::{marker::PhantomData, ptr};
 
-const NWORDS: usize = 3;
+use crate::into;
+use crate::limits;
+use crate::Erased;
 
 /**
  * A struct that stores a `T`, either inline or, if `T` is larger than 3 words, allocated.
  */
 #[repr(C)]
 pub struct Trident<T> {
-    _align: [T; 0],
-    words: [usize; NWORDS],
+    erased: Erased,
     _phantom: PhantomData<T>,
 }
 
-const LIMIT: usize = mem::size_of::<[usize; NWORDS]>();
-
 impl<T> Trident<T> {
     fn should_inline() -> bool {
-        mem::size_of::<T>() <= LIMIT
+        limits::should_inline::<T>()
     }
 
+    /**
+     * Create a `Trident<T>` from a `T`.
+     */
     pub fn new(t: T) -> Self {
-        if Self::should_inline() {
-            let mut ret = Self {
-                words: [0; NWORDS],
-                _phantom: PhantomData {},
-                _align: Default::default(),
-            };
-
-            unsafe {
-                ptr::copy_nonoverlapping(&t, ret.as_mut_ref(), 1);
-            }
-            mem::forget(t);
-
-            ret
-        } else {
-            let alloc = Box::new(t);
-
-            Self {
-                words: [Box::into_raw(alloc) as usize, 0, 0],
-                _phantom: PhantomData {},
-                _align: Default::default(),
-            }
+        Self {
+            erased: Erased::new(t),
+            _phantom: PhantomData,
         }
     }
 
-    pub fn as_ref(&self) -> &T {
-        let ptr = if Self::should_inline() {
-            &self.words as *const _ as usize as *const T
-        } else {
-            self.words[0] as *const T
-        };
-
-        unsafe { &*ptr }
+    /**
+     * Create a `Trident<T>` from an `Erased`.
+     *
+     * Unsafe because we don't know that `erased` contains a `T`.
+     */
+    pub unsafe fn from_erased(erased: Erased) -> Self {
+        Self {
+            erased,
+            _phantom: PhantomData,
+        }
     }
 
-    pub fn as_mut_ref(&mut self) -> &mut T {
-        let ptr = if Self::should_inline() {
-            &mut self.words as *mut _ as usize as *mut T
-        } else {
-            self.words[0] as *mut T
-        };
+    /**
+     * Get a pointer to the contained `T`.
+     */
+    pub fn as_ptr(&self) -> *const T {
+        // SAFETY: we were created with the same T we request
+        unsafe { self.erased.as_ptr() }
+    }
 
-        unsafe { &mut *ptr }
+    /**
+     * Get a reference to the contained `T`.
+     */
+    pub fn as_ref(&self) -> &T {
+        // SAFETY: we were created with the same T we request
+        unsafe { self.erased.as_ref() }
+    }
+
+    /**
+     * Get a mutable pointer to the contained `T`.
+     */
+    pub fn as_mut_ptr(&mut self) -> *mut T {
+        // SAFETY: we were created with the same T we request
+        unsafe { self.erased.as_mut_ptr() }
+    }
+
+    /**
+     * Get a mutable reference to the contained `T`.
+     */
+    pub fn as_mut_ref(&mut self) -> &mut T {
+        // SAFETY: we were created with the same T we request
+        unsafe { self.erased.as_mut_ref() }
+    }
+
+    /**
+     * Convert to the contained `T`
+     */
+    pub fn into_inner(mut self) -> T {
+        into::into_inner(self.as_mut_ptr(), self)
     }
 }
 
@@ -71,8 +84,22 @@ impl<T> Trident<T>
 where
     T: Copy,
 {
+    /**
+     * Copy out the contained `T`
+     */
     pub fn get(&self) -> T {
         *self.as_ref()
+    }
+}
+
+impl<T> Trident<T> {
+    /**
+     * Convert to an `Erased`.
+     *
+     * T's destructor cannot be run, as the type is erased.
+     */
+    pub fn into_erased(self) -> Erased {
+        Erased::new(self.into_inner())
     }
 }
 
